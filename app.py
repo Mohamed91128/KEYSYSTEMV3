@@ -12,6 +12,10 @@ app = Flask(__name__)
 ENCRYPTION_KEY = b"hQ4S1jT1TfQcQk_XLhJ7Ky1n3ht9ABhxqYUt09Ax0CM="
 cipher = Fernet(ENCRYPTION_KEY)
 
+# === Admin Key ===
+ADMIN_KEY = "20102010"
+ENCRYPTED_ADMIN_KEY = cipher.encrypt(ADMIN_KEY.encode()).decode()
+
 # === Files ===
 KEYS_FILE = "keys.json"
 TEMP_TOKENS_FILE = "temp_tokens.json"
@@ -60,7 +64,7 @@ def is_valid_temp_token(token):
     if datetime.now() > expires_at:
         return False
 
-    # One-time use
+    # One-time use: delete token after check
     del tokens[token]
     save_temp_tokens(tokens)
     return True
@@ -76,7 +80,8 @@ def get_short_link():
     tokens[temp_token] = {"expires": expires}
     save_temp_tokens(tokens)
 
-    target_url = f"https://hs-tooolz10.onrender.com/genkey?token={temp_token}"
+    # FIX: Use your real domain (matching SHORTJAMBO_TOKEN url)
+    target_url = f"https://keysystemv3.onrender.com/genkey?token={temp_token}"
     shortjambo_url = f"{SHORTJAMBO_API}?api={SHORTJAMBO_TOKEN}&url={target_url}&format=text"
 
     try:
@@ -95,6 +100,25 @@ def get_short_link():
 @app.route("/genkey")
 def generate_key():
     temp_token = request.args.get("token")
+    encrypted_admin_key = request.args.get("adminkey")
+
+    # If admin key is provided, verify and bypass token checks
+    if encrypted_admin_key:
+        try:
+            admin_key = cipher.decrypt(encrypted_admin_key.encode()).decode()
+            if admin_key == ADMIN_KEY:
+                # Admin key bypasses all restrictions, generate new key normally
+                keys = load_keys()
+                new_key = generate_unique_key(keys)
+                expiration = (datetime.now() + timedelta(hours=24)).isoformat()
+                keys[new_key] = {"expires": expiration, "used": False}
+                save_keys(keys)
+                encrypted_key = cipher.encrypt(new_key.encode()).decode()
+                return render_template("keygen.html", key=encrypted_key, expires=expiration)
+        except Exception:
+            pass  # If decryption fails, continue to normal token validation
+
+    # Normal token validation for normal users
     if not temp_token or not is_valid_temp_token(temp_token):
         return "Access denied. You must visit this page through the authorized short link.", 403
 
@@ -119,6 +143,10 @@ def verify_key():
     except Exception:
         return jsonify({"valid": False, "reason": "Invalid encrypted key"}), 400
 
+    # Admin key bypasses all checks, always valid
+    if key == ADMIN_KEY:
+        return jsonify({"valid": True, "admin": True})
+
     keys = load_keys()
     key_info = keys.get(key)
 
@@ -131,11 +159,19 @@ def verify_key():
     if datetime.fromisoformat(key_info["expires"]) < datetime.now():
         return jsonify({"valid": False, "reason": "Key expired"}), 403
 
+    # Mark key as used
     keys[key]["used"] = True
     save_keys(keys)
 
     return jsonify({"valid": True})
 
+# Optional endpoint to get encrypted admin key for convenience
+@app.route("/adminkey")
+def get_admin_key():
+    return jsonify({
+        "admin_key": ENCRYPTED_ADMIN_KEY,
+        "plaintext": ADMIN_KEY
+    })
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
-
