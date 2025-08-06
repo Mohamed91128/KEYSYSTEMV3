@@ -18,7 +18,7 @@ TEMP_TOKENS_FILE = "temp_tokens.json"
 
 # === ShortJambo API ===
 SHORTJAMBO_API = "https://short-jambo.com/api"
-SHORTJAMBO_TOKEN = "https://short-jambo.com/api?api=6e49817e3eab65f2f9b06f8c1319ba768a4ae9c4&url=https://hs-tooolz10.onrender.com/genkey&alias=CustomAlias://short-jambo.com/api319ba768a4ae9c4"
+SHORTJAMBO_TOKEN = "https://short-jambo.com/api?api=6e49817e3eab65f2f9b06f8c1319ba768a4ae9c4&url=https://keysystemv3.onrender.com/genkey&alias=CustomAlias://short-jambo.com/api319ba768a4ae9c4"
 TOKEN_EXPIRY_SECONDS = 60  # 1 minute
 
 # === Helper functions ===
@@ -138,3 +138,4 @@ def verify_key():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
+
